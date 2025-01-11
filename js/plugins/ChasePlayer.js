@@ -1,24 +1,36 @@
 /*:
- * @plugindesc Autonomous NPC Chasing Player Plugin - Smooth Movement and Conditional Behavior
+ * @plugindesc Autonomous NPC Chasing Player Plugin - Start Chase on 5-tile Range, Continue Chasing
  * @author 
  * 
  * @help
- * This plugin allows NPCs to chase the player when within a defined tile range, 
- * stopping if the player is facing them.
+ * This plugin allows NPCs to start chasing the player when within a defined tile range
+ * (e.g., 5 tiles). Once the chase starts, the NPC will continue chasing the player even
+ * if the distance exceeds the range, with movement based on the RPG Maker settings.
+ *
+ * Plugin Commands:
+ * - ActivateChase : Enables NPC chase behavior (resets chase if NPC is within range).
+ * - DeactivateChase : Disables NPC chase behavior (resets chase if NPC was chasing).
  *
  * Usage:
  * Add the following script call to an event's "Autonomous Movement" route:
- *   this.startChase(25); // Replace 25 with your desired tile range
+ *   this.startChase(5); // Replace 5 with your desired tile range
  *
  * Features:
- * - Smooth chasing behavior.
- * - Stops moving if the player faces the NPC.
+ * - NPC starts chasing when within the tile range.
+ * - NPC continues chasing the player regardless of the distance.
+ * - Movement speed and frequency follow RPG Maker engine settings for natural movement.
  * - Can be used for any event.
  */
 
 (function() {
+    // Track if the chase has started and if it should be active
+    Game_Event.prototype.hasStartedChase = false;
+    Game_Event.prototype.isChaseActive = true; // Control chase activation
+
     // Start the chase behavior for an NPC
     Game_Event.prototype.startChase = function(maxRange) {
+        if (!this.isChaseActive) return; // If chase is deactivated, do nothing
+
         const playerX = $gamePlayer.x;
         const playerY = $gamePlayer.y;
         const npcX = this.x;
@@ -26,34 +38,92 @@
 
         const distance = Math.abs(playerX - npcX) + Math.abs(playerY - npcY);
 
-        // Check if player is within range and not facing the NPC
-        if (distance <= maxRange && !this.isPlayerFacingNPC(playerX, playerY, npcX, npcY)) {
-            this.moveTowardCharacter($gamePlayer);
+        // Check if the player is within range, and if the chase has not started yet
+        if (!this.hasStartedChase && distance <= maxRange) {
+            this.hasStartedChase = true; // Mark that the chase has started
+        }
+	else
+	{
+	    this.hasStartedChase = false;
+	}
+	
+
+        // If chase has started, continue chasing the player regardless of distance
+        if (this.hasStartedChase) {
+            this.moveTowardPlayer(playerX, playerY);
         }
     };
 
-    // Determine if the player is facing the NPC
-    Game_Event.prototype.isPlayerFacingNPC = function(playerX, playerY, npcX, npcY) {
-        const playerDirection = $gamePlayer.direction();
-        if (playerDirection === 2 && npcY > playerY) return true; // Down
-        if (playerDirection === 4 && npcX < playerX) return true; // Left
-        if (playerDirection === 6 && npcX > playerX) return true; // Right
-        if (playerDirection === 8 && npcY < playerY) return true; // Up
-        return false;
-    };
+    // The NPC will move toward the player's position
+    Game_Event.prototype.moveTowardPlayer = function(playerX, playerY) {
+        const npcX = this.x;
+        const npcY = this.y;
 
-    // Override moveTowardCharacter for smoother movement
-    const _Game_Character_moveTowardCharacter = Game_Character.prototype.moveTowardCharacter;
-    Game_Character.prototype.moveTowardCharacter = function(character) {
-        const sx = this.deltaXFrom(character.x);
-        const sy = this.deltaYFrom(character.y);
+        let possibleDirections = [];
 
-        if (Math.abs(sx) > Math.abs(sy)) {
-            this.moveStraight(sx > 0 ? 4 : 6);
-            if (!this.isMovementSucceeded()) this.moveStraight(sy > 0 ? 8 : 2);
-        } else {
-            this.moveStraight(sy > 0 ? 8 : 2);
-            if (!this.isMovementSucceeded()) this.moveStraight(sx > 0 ? 4 : 6);
+        // Check if NPC can move in the direction towards the player
+        if (npcX < playerX && $gameMap.isPassable(npcX + 1, npcY, 6)) possibleDirections.push(6); // Right
+        if (npcX > playerX && $gameMap.isPassable(npcX - 1, npcY, 4)) possibleDirections.push(4); // Left
+        if (npcY < playerY && $gameMap.isPassable(npcX, npcY + 1, 2)) possibleDirections.push(2); // Down
+        if (npcY > playerY && $gameMap.isPassable(npcX, npcY - 1, 8)) possibleDirections.push(8); // Up
+
+        // If no direction found, try alternative directions
+        if (possibleDirections.length === 0) {
+            if ($gameMap.isPassable(npcX + 1, npcY, 6)) possibleDirections.push(6); // Right
+            if ($gameMap.isPassable(npcX - 1, npcY, 4)) possibleDirections.push(4); // Left
+            if ($gameMap.isPassable(npcX, npcY + 1, 2)) possibleDirections.push(2); // Down
+            if ($gameMap.isPassable(npcX, npcY - 1, 8)) possibleDirections.push(8); // Up
+        }
+
+        // Move in one of the available directions
+        if (possibleDirections.length > 0) {
+            const direction = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+            this.moveStraight(direction); // Move in a random valid direction
         }
     };
+
+    // Plugin command to activate or deactivate chase behavior
+    PluginManager.registerCommand('ActivateChase', function() {
+        $gameMap.events().forEach(function(event) {
+            if (event instanceof Game_Event) {
+                event.isChaseActive = true;  // Enable chase behavior
+                event.hasStartedChase = false;  // Reset chase state (will start chasing if within range)
+                event.startChase(5); // Ensure the NPC starts chasing if within range
+            }
+        });
+    });
+
+    PluginManager.registerCommand('DeactivateChase', function() {
+        $gameMap.events().forEach(function(event) {
+            if (event instanceof Game_Event) {
+                event.isChaseActive = false;  // Disable chase behavior
+                event.hasStartedChase = false;  // Reset chase state
+            }
+        });
+    });
+
+    // Hook into the Transfer Player and Set Event Location commands
+    Game_Interpreter.prototype.command205 = function(params) {
+        // Call the original Transfer Player command
+        const result = Game_Interpreter.prototype.command205.call(this, params);
+        
+        // Ensure NPC's chase behavior is reset after transfer
+        $gameMap.events().forEach(function(event) {
+            if (event instanceof Game_Event) {
+                event.hasStartedChase = false; // Reset chase state immediately
+            }
+        });
+
+        return result;
+    };
+
+    Game_Interpreter.prototype.command205SetLocation = function(eventId, x, y) {
+        $gameMap.events().forEach(function(event) {
+            if (event.id === eventId) {
+                event.setPosition(x, y); // Set the NPC's position
+                event.hasStartedChase = false; // Reset chase state
+            }
+        });
+    };
+
 })();
