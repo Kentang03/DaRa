@@ -4,6 +4,7 @@ var $plugins =
 [
 {"name":"SRD_SuperToolsEngine","status":true,"description":"The heart of all maker-style plugins; it adds a playtesting editor that can be opened with F12.","parameters":{"Connect Editor":"true","Auto Open Window":"false","Auto Move Window":"true","Menu Editor Exempt List":"[\"Window_BattleLog\",\"Window_MapName\"]"}},
 {"name":"SRD_HUDMaker","status":true,"description":"Allows developers to create their own map-based HUD through an in-game GUI window!","parameters":{"Active Updating":"false","Show During Events":"transparent","Map Global Condition":"","Battle Global Condition":"","Disable Delete Key":"true"}},
+{"name":"PlayerAndObjectLights","status":true,"description":"Unified Flashlight and Object Light Source Plugin","parameters":{}},
 {"name":"ChasePlayer","status":true,"description":"Autonomous NPC Chasing Player Plugin - Smooth Movement and Conditional Behavior","parameters":{}},
 {"name":"ChasePlayerKunti","status":true,"description":"Autonomous NPC Chasing Player Plugin - Start Chase on 5-tile Range, Continue Chasing","parameters":{}},
 {"name":"Flashlight","status":true,"description":"Flashlight Effect Plugin (Senter) - Creates a triangular flashlight beam in front of the player with a 9-tile range.","parameters":{}},
