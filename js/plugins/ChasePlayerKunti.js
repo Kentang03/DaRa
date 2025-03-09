@@ -28,7 +28,7 @@
     Game_Event.prototype.isChaseActive = true; // Control chase activation
 
     // Start the chase behavior for an NPC
-    Game_Event.prototype.startChase = function() {
+    Game_Event.prototype.startChases = function() {
 	this.isChaseActive = true;
   
 
